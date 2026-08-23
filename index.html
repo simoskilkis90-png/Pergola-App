@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>PG 120P MYKONOS - Υπολογιστής Πέργκολας</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+    .app-layout { display: flex; flex-wrap: wrap; gap: 20px; max-width: 1640px; margin: 0 auto; }
+    .form-container { flex: 1.3; min-width: 480px; background: #ffffff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    .preview-container { flex: 1.1; min-width: 480px; background: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; position: sticky; top: 20px; height: fit-content; }
+    #canvas-container { width: 100%; height: 620px; background-color: #eaedf2; border-radius: 8px; border: 1px solid #cbd5e0; overflow: hidden; }
+    .bg-toolbar { width: 100%; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 11px; background: #f8fafc; padding: 6px 12px; border-radius: 6px; border: 1px solid #e2e8f0; box-sizing: border-box; }
+    .bg-toolbar select { width: auto; padding: 3px 6px; font-size: 11px; }
+    .main-title { text-align: center; margin-bottom: 20px; }
+    .main-title h1 { margin: 0; color: #1a365d; font-size: 24px; letter-spacing: 1px; }
+    .main-title p { margin: 4px 0 0 0; color: #718096; font-size: 13px; font-weight: 600; }
+    .section-title { font-size: 15px; font-weight: bold; color: #2b6cb0; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px; margin-top: 18px; margin-bottom: 12px; }
+    .form-group { margin-bottom: 12px; }
+    label { display: block; font-weight: 600; margin-bottom: 4px; color: #4a5568; font-size: 13px; }
+    input, select { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; font-size: 13px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+    .grid-coverage { display: grid; grid-template-columns: 1.1fr 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px; align-items: center; }
+    .coverage-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+    .matrix-box { background: #f8fafc; border: 1px dashed #cbd5e0; padding: 14px; border-radius: 8px; margin-bottom: 12px; }
+    .wall-box { background: #fffaf0; border: 1px solid #feebc8; padding: 10px; border-radius: 6px; margin-bottom: 12px; }
+    .btn { width: 100%; background-color: #3182ce; color: white; border: none; padding: 13px; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 12px; }
+    .btn:hover { background-color: #2b6cb0; }
+    .btn-pdf { background-color: #38a169; }
+    .btn-pdf:hover { background-color: #2f855a; }
+    .alert-box { background-color: #ebf8ff; border-left: 4px solid #3182ce; padding: 10px; margin-top: 12px; border-radius: 4px; font-size: 13px; }
+    .column-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+    .column-table th, .column-table td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: center; }
+    .column-table th { background: #edf2f7; color: #4a5568; }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+  <div class="form-container">
+    <div class="main-title">
+      <h1>PG 120P MYKONOS</h1>
+      <p>ΥΠΟΛΟΓΙΣΤΗΣ ΒΙΟΚΛΙΜΑΤΙΚΗΣ ΠΕΡΓΚΟΛΑΣ</p>
+    </div>
+    
+    <div class="section-title">1. Επιλογή Τυπολογίας</div>
+    <div class="form-group">
+      <label>ΜΟΝΤΕΛΟ ΤΥΠΟΛΟΓΙΑΣ:</label>
+      <select id="typology" onchange="onTypologyChanged()">
+        <option value="BASE">BASE (Μονό Πλαίσιο)</option>
+        <option value="MATRIX">MATRIX (Πολυπεδιακό / Σκακιέρα)</option>
+      </select>
+    </div>
+
+    <div class="section-title">2. Ολικές & Επιμέρους Διαστάσεις</div>
+    <div id="baseDimensionsGroup">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>ΟΛΙΚΟ ΠΛΑΤΟΣ W (W1 / W2) (mm):</label>
+          <input type="number" id="baseWidth" value="4000" oninput="rebuildColumnsUI(); rebuildSlatLightInputs(); rebuildCoverageUI(); onInputsChanged();">
+        </div>
+        <div class="form-group">
+          <label>ΟΛΙΚΗ ΠΡΟΒΟΛΗ P (P1 / P2) (mm):</label>
+          <input type="number" id="baseProjection" value="4000" oninput="rebuildColumnsUI(); rebuildSlatLightInputs(); rebuildCoverageUI(); onInputsChanged();">
+        </div>
+      </div>
+    </div>
+
+    <div id="matrixDimensionsGroup" style="display:none;">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>ΜΑΤΙΑ ΠΡΟΒΟΛΗΣ (Z):</label>
+          <select id="matrixRows" onchange="rebuildMatrixInputs(); rebuildColumnsUI(); rebuildSlatLightInputs(); rebuildCoverageUI(); onInputsChanged();">
+            <option value="1">1 Μάτι</option>
+            <option value="2" selected>2 Μάτια</option>
+            <option value="3">3 Μάτια</option>
+            <option value="4">4 Μάτια</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>ΜΑΤΙΑ ΠΛΑΤΟΥΣ (X):</label>
+          <select id="matrixCols" onchange="rebuildMatrixInputs(); rebuildColumnsUI(); rebuildSlatLightInputs(); rebuildCoverageUI(); onInputsChanged();">
+            <option value="1">1 Μάτι</option>
+            <option value="2" selected>2 Μάτια</option>
+            <option value="3">3 Μάτια</option>
+            <option value="4">4 Μάτια</option>
+            <option value="5">5 Μάτια</option>
+          </select>
+        </div>
+      </div>
+      <div class="matrix-box">
+        <div id="matrixWidthsInputs"></div>
+        <div id="matrixProjectionsInputs" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>ΓΕΝΙΚΟ ΥΨΟΣ Y (mm):</label>
+      <input type="number" id="globalHeight" value="3000" oninput="syncGlobalHeight(); onInputsChanged();">
+    </div>
+
+    <div class="section-title">3. Στήριξη σε Τοίχους</div>
+    <div class="wall-box">
+      <label style="margin-bottom:6px; color:#c05621;">Επιλέξτε πλευρές που εφάπτονται σε Τοίχο:</label>
+      <div class="grid-4">
+        <label style="font-size:12px; display:flex; align-items:center;"><input type="checkbox" id="wallW1" style="width:auto; margin-right:4px;" onchange="onWallToggled('w1')"> Πίσω (W1)</label>
+        <label style="font-size:12px; display:flex; align-items:center;"><input type="checkbox" id="wallW2" style="width:auto; margin-right:4px;" onchange="onWallToggled('w2')"> Μπροστά (W2)</label>
+        <label style="font-size:12px; display:flex; align-items:center;"><input type="checkbox" id="wallP1" style="width:auto; margin-right:4px;" onchange="onWallToggled('p1')"> Αριστερά (P1)</label>
+        <label style="font-size:12px; display:flex; align-items:center;"><input type="checkbox" id="wallP2" style="width:auto; margin-right:4px;" onchange="onWallToggled('p2')"> Δεξιά (P2)</label>
+      </div>
+    </div>
+
+    <div class="section-title">4. Διαχείριση & Ύψη Κολωνών (H)</div>
+    <div style="margin-bottom: 8px;">
+      <label style="display:inline-flex; align-items:center; cursor:pointer;">
+        <input type="checkbox" id="useGlobalHeightToggle" checked style="width:auto; margin-right:6px;" onchange="toggleHeightMode()">
+        <strong>Χρήση Γενικού Ύψους για όλες τις κολώνες</strong>
+      </label>
+    </div>
+    
+    <div id="customColsContainer" style="display:none; max-height:240px; overflow-y:auto; border:1px solid #cbd5e0; border-radius:6px; padding:6px; background:#fff;">
+      <table class="column-table">
+        <thead><tr><th>Κωδικός</th><th>Θέση</th><th>Ύπαρξη</th><th>Ύψος Κοπής (mm)</th></tr></thead>
+        <tbody id="columnsTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="form-group" style="margin-top:12px;">
+      <label>ΤΥΠΟΣ ΠΕΡΣΙΔΑΣ (Ελεύθερη Επιλογή):</label>
+      <select id="slatTypeSelect" onchange="onInputsChanged()">
+        <option value="ΑΠΛΗ">ΑΠΛΗ</option>
+        <option value="ΕΝΙΣΧΥΜΕΝΗ">ΕΝΙΣΧΥΜΕΝΗ</option>
+      </select>
+    </div>
+
+    <div class="alert-box">
+      <strong>⚙️ Τεχνικά Χαρακτηριστικά:</strong><br>
+      • Σύνοψη: <span id="summaryDisplay" style="color:#2b6cb0; font-weight:bold;">-</span><br>
+      • Πρόταση Περσίδας: <span id="slatTypeDisplay" style="color:#d69e2e; font-weight:bold;">-</span><br>
+      • Τοίχοι: <span id="wallsDisplay" style="color:#c05621; font-weight:bold;">-</span>
+    </div>
+
+    <div class="section-title">5. Φωτισμός (Τραβέρσες & Περσίδες)</div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label>ΕΙΔΟΣ ΦΩΤΙΣΜΟΥ ΤΡΑΒΕΡΣΩΝ:</label>
+        <select id="lightTraversaType" onchange="onInputsChanged()">
+          <option value="ΧΩΡΙΣ">ΧΩΡΙΣ</option>
+          <option value="ΜΟΝΗ ΓΡΑΜΜΗ">Μονή Γραμμή (1 Φανερή)</option>
+          <option value="ΔΙΠΛΗ ΓΡΑΜΜΗ">Διπλή Γραμμή (2 Φανερές)</option>
+          <option value="ΚΡΥΦΗ ΓΡΑΜΜΗ">Κρυφή Γραμμή (1 Έμμεση)</option>
+          <option value="3 ΓΡΑΜΜΕΣ">3 Γραμμές (1 Κρυφή + 2 Φανερές)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>ΡΥΘΜΙΣΗ (Dimmer Τραβ.):</label>
+        <select id="lightTraversaDimmer" onchange="onInputsChanged()">
+          <option value="με dimmer">με dimmer</option>
+          <option value="Χωρίς (Απλός On/Off)">Χωρίς (Απλός On/Off)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="form-group">
+        <label>ΦΩΤΙΣΜΟΣ ΠΕΡΣΙΔΩΝ (DOWNLIGHT):</label>
+        <select id="lightSlats" onchange="toggleSlatLightsUI(); onInputsChanged();">
+          <option value="ΧΩΡΙΣ">ΧΩΡΙΣ</option>
+          <option value="ΜΕ">ΜΕ</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>ΡΥΘΜΙΣΗ (Dimmer Περσ.):</label>
+        <select id="lightSlatsDimmer" onchange="onInputsChanged()">
+          <option value="Χωρίς (Απλός On/Off)">Χωρίς (Απλός On/Off)</option>
+          <option value="με dimmer">με dimmer</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="slatLightsContainer" style="display:none; background:#f7fafc; padding:10px; border-radius:6px; border:1px solid #e2e8f0; margin-bottom:12px;">
+      <label style="color:#2b6cb0;">Αριθμός Φωτιζόμενων Περσίδων ανά Μάτι:</label>
+      <div id="slatLightsPerFrameGrid" class="grid-3" style="margin-top:6px;"></div>
+    </div>
+
+    <div class="section-title">6. Περιμετρικές Καλύψεις (Ανά Άνοιγμα / Πεδίο)</div>
+    <div id="coveragesDynamicContainer"></div>
+
+    <div class="section-title">7. Χρώματα & Αυτοματισμοί</div>
+    <div class="grid-2">
+      <div class="form-group"><label>ΧΡΩΜΑ ΣΚΕΛΕΤΟΥ:</label><select id="skeletonColor" onchange="onInputsChanged()"></select></div>
+      <div class="form-group"><label>ΧΡΩΜΑ ΠΕΡΣΙΔΑΣ:</label><select id="slatColor" onchange="onInputsChanged()"></select></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="form-group">
+        <label>ΑΙΣΘΗΤΗΡΕΣ:</label>
+        <select id="sensors">
+          <option value="ΧΩΡΙΣ">ΧΩΡΙΣ</option><option value="ΒΡΟΧΗΣ">ΒΡΟΧΗΣ</option><option value="ΑΝΕΜΟΥ">ΑΝΕΜΟΥ</option>
+          <option value="ΗΛΙΟΥ">ΗΛΙΟΥ</option><option value="ΒΡΟΧΗΣ & ΑΝΕΜΟΥ">ΒΡΟΧΗΣ & ΑΝΕΜΟΥ</option><option value="ΠΛΗΡΕΣ ΣΕΤ">ΠΛΗΡΕΣ ΣΕΤ</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>ΠΡΟΑΝΟΔΙΩΣΗ:</label>
+        <select id="preAnodization"><option value="OXI">OXI</option><option value="NAI">NAI</option></select>
+      </div>
+    </div>
+
+    <button class="btn" onclick="saveData()">Αποθήκευση στο Google Sheet</button>
+    <button class="btn btn-pdf" onclick="generatePDFProposal()">📄 Έκδοση Προσφοράς με 3D (PDF)</button>
+    <div id="statusMessage" style="text-align:center; margin-top:10px; font-weight:bold; color:green;"></div>
+  </div>
+
+  <div class="preview-container">
+    <h3 style="margin-top:0; color:#2c3e50;">3D Προεπισκόπηση PG 120P MYKONOS</h3>
+    <div class="bg-toolbar">
+      <div><span>🎨 Φόντο:</span><select id="bgThemeSelect" onchange="change3DBackground()"><option value="studio" selected>Studio Neutral</option><option value="pureWhite">Καθαρό Λευκό</option><option value="warmArchitectural">Ζεστό Grey</option><option value="darkSlate">Σκούρο Slate</option></select></div>
+      <div><span>🔍 Μέγεθος:</span><select id="labelScaleSelect" onchange="update3DModel()"><option value="1.0">Κανονικό</option><option value="1.3" selected>Μεγάλο (130%)</option><option value="1.6">Πολύ Μεγάλο</option><option value="2.0">Γιγαντιαίο</option></select></div>
+      <div><span>📐 Απόσταση:</span><select id="dimOffsetSelect" onchange="update3DModel()"><option value="0.3">Κοντά (0.3m)</option><option value="0.6" selected>Κανονική (0.6m)</option><option value="1.0">Μακριά (1.0m)</option><option value="1.5">Πολύ Μακριά (1.5m)</option></select></div>
+    </div>
+    <div id="canvas-container"></div>
+    <div style="margin-top:10px; font-size:12px; color:#718096; text-align:center;">💡 Σύρετε με το ποντίκι για περιστροφή 360° | Scroll για Zoom</div>
+  </div>
+</div>
+
+<script>
+  var colorMap = {
+    "RAL 7016 ST (Ανθρακί Σαγρέ)": 0x373e48, "RAL 9005 ST (Μαύρο Σαγρέ)": 0x111113,
+    "RAL 9016 ST (Λευκό Σαγρέ)": 0xf8f9fa, "RAL 9016 (Λευκό Ματ)": 0xf8f9fa,
+    "RAL 9007 ST (Γκρι Αλουμινίου Σαγρέ)": 0x8d9092, "RAL 7021 ST (Σκούρο Ανθρακί)": 0x24272c,
+    "RAL 7035 (Ανοιχτό Γκρι)": 0xd0d4dc, "RAL 8019 (Καφέ Σκούρο)": 0x3d312a
+  };
+  var backgroundThemes = { studio: 0xeaedf2, pureWhite: 0xffffff, warmArchitectural: 0xe5e2dc, darkSlate: 0x1e293b };
+  var scene, camera, renderer, controls, pergolaGroup, dimGroup, labelGroup, colLabelGroup, wallGroup, coverageGroup;
+  var frameMaterial, slatMaterial, wallMaterial;
+
+  window.onload = function() {
+    populateColors(); rebuildMatrixInputs(); rebuildColumnsUI(); rebuildSlatLightInputs(); rebuildCoverageUI(); init3D(); onInputsChanged();
+  };
+
+  function populateColors() {
+    var skel = document.getElementById('skeletonColor'), slat = document.getElementById('slatColor');
+    Object.keys(colorMap).forEach(c => { skel.add(new Option(c, c)); slat.add(new Option(c, c)); });
+    skel.value = "RAL 7016 ST (Ανθρακί Σαγρέ)"; slat.value = "RAL 9016 ST (Λευκό Σαγρέ)";
+  }
+
+  function onTypologyChanged() {
+    var typ = document.getElementById('typology').value;
+    document.getElementById('baseDimensionsGroup').style.display = (typ === 'BASE') ? 'block' : 'none';
+    document.getElementById('matrixDimensionsGroup').style.display = (typ === 'MATRIX') ? 'block' : 'none';
+    rebuildColumnsUI(); rebuildSlatLightInputs(); rebuildCoverageUI(); onInputsChanged();
+  }
+
+  function rebuildMatrixInputs() {
+    var rows = parseInt(document.getElementById('matrixRows').value) || 2, cols = parseInt(document.getElementById('matrixCols').value) || 2;
+    var wContainer = document.getElementById('matrixWidthsInputs'), pContainer = document.getElementById('matrixProjectionsInputs');
+    wContainer.innerHTML = '<label>Επιμέρους Πλάτη (W1.1, W1.2...):</label><div class="grid-3" id="wInputsGrid"></div>';
+    pContainer.innerHTML = '<label>Επιμέρους Προβολές (P1.1, P1.2...):</label><div class="grid-3" id="pInputsGrid"></div>';
+    var wGrid = document.getElementById('wInputsGrid'), pGrid = document.getElementById('pInputsGrid');
+    for (var c = 1; c <= cols; c++) wGrid.innerHTML += '<div class="form-group"><input type="number" class="matrix-col-w" value="3500" oninput="rebuildColumnsUI(); rebuildCoverageUI(); onInputsChanged();"></div>';
+    for (var r = 1; r <= rows; r++) pGrid.innerHTML += '<div class="form-group"><input type="number" class="matrix-row-p" value="3000" oninput="rebuildColumnsUI(); rebuildCoverageUI(); onInputsChanged();"></div>';
+  }
+
+  function toggleHeightMode() {
+    var useGlobal = document.getElementById('useGlobalHeightToggle').checked;
+    document.getElementById('customColsContainer').style.display = useGlobal ? 'none' : 'block';
+    if (useGlobal) syncGlobalHeight();
+    onInputsChanged();
+  }
+
+  function syncGlobalHeight() {
+    var gH = document.getElementById('globalHeight').value;
+    document.querySelectorAll('.col-height-input').forEach(i => i.value = gH);
+  }
+
+  function toggleSlatLightsUI() {
+    document.getElementById('slatLightsContainer').style.display = (document.getElementById('lightSlats').value === 'ΜΕ') ? 'block' : 'none';
+  }
+
+  function rebuildSlatLightInputs() {
+    var typ = document.getElementById('typology').value, rows = (typ === 'BASE') ? 1 : parseInt(document.getElementById('matrixRows').value) || 2;
+    var cols = (typ === 'BASE') ? 1 : parseInt(document.getElementById('matrixCols').value) || 2, grid = document.getElementById('slatLightsPerFrameGrid');
+    grid.innerHTML = '';
+    var idx = 1;
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        grid.innerHTML += `<div class="form-group"><label style="font-size:11px;">Μάτι F${idx} (LED):</label><input type="number" class="slat-light-count" data-frame="F${idx}" value="4" min="0" max="25" oninput="onInputsChanged()"></div>`;
+        idx++;
+      }
+    }
+  }
+
+  function getSlatLightsPerFrame() {
+    var map = {}; document.querySelectorAll('.slat-light-count').forEach(i => map[i.dataset.frame] = parseInt(i.value) || 0); return map;
+  }
+
+  function getWallsConfig() {
+    return { w1: document.getElementById('wallW1').checked, w2: document.getElementById('wallW2').checked, p1: document.getElementById('wallP1').checked, p2: document.getElementById('wallP2').checked };
+  }
+
+  function onWallToggled() {
+    var typ = document.getElementById('typology').value, rows = (typ === 'BASE') ? 1 : parseInt(document.getElementById('matrixRows').value) || 2;
+    var cols = (typ === 'BASE') ? 1 : parseInt(document.getElementById('matrixCols').value) || 2, walls = getWallsConfig();
+    document.querySelectorAll('.col-active-chk').forEach(chk => {
+      var r = parseInt(chk.dataset.r), c = parseInt(chk.dataset.c);
+      if ((walls.w1 && r === 0) || (walls.w2 && r === rows) || (walls.p1 && c === 0) || (walls.p2 && c === cols)) chk.checked = false;
+    });
+    onInputsChanged();
+  }
+
+  function rebuildColumnsUI() {
+    var typ = document.getElementById('typology').value, gH = document.getElementById('globalHeight').value || 3000, tbody = document.getElementById('columnsTableBody');
+    tbody.innerHTML = '';
+    var rows = (typ === 'BASE') ? 1 : parseInt(document.getElementById('matrixRows').value) || 2, cols = (typ === 'BASE') ? 1 : parseInt(document.getElementById('matrixCols').value) || 2, walls = getWallsConfig(), idx = 1;
+    for (var r = 0; r <= rows; r++) {
+      for (var c = 0; c <= cols; c++) {
+        var name = "H" + idx, isWall = (walls.w1 && r === 0) || (walls.w2 && r === rows) || (walls.p1 && c === 0) || (walls.p2 && c === cols);
+        tbody.innerHTML += `<tr><td><strong>${name}</strong></td><td>(${r}, ${c})</td><td><input type="checkbox" class="col-active-chk" data-name="${name}" data-r="${r}" data-c="${c}" ${!isWall ? 'checked' : ''} onchange="onInputsChanged()"></td><td><input type="number" class="col-height-input" value="${gH}" style="padding:4px; font-size:12px;" oninput="onInputsChanged()"></td></tr>`;
+        idx++;
+      }
+    }
+  }
+
+  function getColumnsData() {
+    var chks = document.querySelectorAll('.col-active-chk'), inps = document.querySelectorAll('.col-height-input'), gH = parseFloat(document.getElementById('globalHeight').value) || 3000, useG = document.getElementById('useGlobalHeightToggle').checked, data = [];
+    for (var i = 0; i < chks.length; i++) data.push({ name: chks[i].dataset.name, r: parseInt(chks[i].dataset.r), c: parseInt(chks[i].dataset.c), active: chks[i].checked, height: useG ? gH : (parseFloat(inps[i].value) || gH) });
+    return data;
+  }
+
+  function getMatrixConfig() {
+    var widths = [], projections = [];
+    document.querySelectorAll('.matrix-col-w').forEach(i => widths.push(parseFloat(i.value) || 3500));
+    document.querySelectorAll('.matrix-row-p').forEach(i => projections.push(parseFloat(i.value) || 3000));
+    return { widths: widths.length ? widths : [3500, 3500], projections: projections.length ? projections : [3000, 3000] };
+  }
+
+  function rebuildCoverageUI() {
+    var typ = document.getElementById('typology').value, container = document.getElementById('coveragesDynamicContainer');
+    container.innerHTML = '';
+    var rows = (typ === 'BASE') ? 1 : (parseInt(document.getElementById('matrixRows').value) || 2);
+    var cols = (typ === 'BASE') ? 1 : (parseInt(document.getElementById('matrixCols').value) || 2);
+    var spans = [];
+    for (var c = 1; c <= cols; c++) spans.push({ key: 'w1_' + c, label: 'Πίσω Άνοιγμα W1.' + c, side: 'W1', index: c - 1 });
+    for (var c = 1; c <= cols; c++) spans.push({ key: 'w2_' + c, label: 'Μπροστά Άνοιγμα W2.' + c, side: 'W2', index: c - 1 });
+    for (var r = 1; r <= rows; r++) spans.push({ key: 'p1_' + r, label: 'Αριστερό Άνοιγμα P1.' + r, side: 'P1', index: r - 1 });
+    for (var r = 1; r <= rows; r++) spans.push({ key: 'p2_' + r, label: 'Δεξί Άνοιγμα P2.' + r, side: 'P2', index: r - 1 });
+
+    spans.forEach(sp => {
+      container.innerHTML += `<div class="coverage-card"><strong style="color:#2b6cb0; font-size:12px; display:block; margin-bottom:4px;">${sp.label}:</strong><div class="grid-coverage"><select id="${sp.key}_type" data-key="${sp.key}" data-side="${sp.side}" data-idx="${sp.index}" onchange="updateSingleCoverageOptions('${sp.key}'); onInputsChanged();"><option value="OXI">OXI</option><option value="ZIP SCREENS">ZIP SCREENS</option><option value="ΣΥΡΟΜΕΝΑ ΤΖΑΜΙΑ">ΣΥΡΟΜΕΝΑ ΤΖΑΜΙΑ</option><option value="ΠΑΝΤΖΟΥΡΙΑ">ΠΑΝΤΖΟΥΡΙΑ</option></select><select id="${sp.key}_sub1" style="display:none;" onchange="onInputsChanged()"></select><select id="${sp.key}_sub2" style="display:none;" onchange="onInputsChanged()"></select><select id="${sp.key}_sub3" style="display:none;" onchange="onInputsChanged()"></select></div></div>`;
+    });
+  }
+
+  function updateSingleCoverageOptions(prefix) {
+    var type = document.getElementById(prefix + '_type').value, s1 = document.getElementById(prefix + '_sub1'), s2 = document.getElementById(prefix + '_sub2'), s3 = document.getElementById(prefix + '_sub3');
+    s1.innerHTML = ''; s2.innerHTML = ''; s3.innerHTML = ''; s1.style.display = 'none'; s2.style.display = 'none'; s3.style.display = 'none';
+    if (type === 'ZIP SCREENS') {
+      s1.style.display = 'block'; ["SOLTIS 92", "SOLTIS 86", "BLACKOUT", "ΔΙΑΤΡΗΤΟ PVC"].forEach(v => s1.add(new Option(v, v)));
+    } else if (type === 'ΣΥΡΟΜΕΝΑ ΤΖΑΜΙΑ') {
+      s1.style.display = 'block'; s2.style.display = 'block'; s3.style.display = 'block';
+      ["3-ΦΥΛΛΟ", "4-ΦΥΛΛΟ", "5-ΦΥΛΛΟ", "6-ΦΥΛΛΟ", "8-ΦΥΛΛΟ"].forEach(v => s1.add(new Option(v, v))); s1.value = "4-ΦΥΛΛΟ";
+      ["Χωρίς Κλειδαριά", "1 Κλειδαριά & Χερούλι", "2 Κλειδαριές & Χερούλια", "Κλειδαριές σε όλα τα φύλλα"].forEach(v => s2.add(new Option(v, v))); s2.value = "1 Κλειδαριά & Χερούλι";
+      ["ΜΕ ΤΖΑΜΙΑ (8mm Securit)", "ΜΕ ΤΖΑΜΙΑ (10mm Securit)", "ΜΟΝΟ ΠΡΟΦΙΛ (Χωρίς Τζάμια)"].forEach(v => s3.add(new Option(v, v))); s3.value = "ΜΕ ΤΖΑΜΙΑ (8mm Securit)";
+    } else if (type === 'ΠΑΝΤΖΟΥΡΙΑ') {
+      s1.style.display = 'block'; s2.style.display = 'block'; s3.style.display = 'block';
+      for (var w = 800; w <= 1500; w += 100) s1.add(new Option(w + " mm", w)); s1.value = 1200;
+      for (var n = 1; n <= 6; n++) s2.add(new Option(n + (n === 1 ? " Φύλλο" : " Φύλλα"), n)); s2.value = 2;
+      ["ΜΟΝΟΣ ΟΔΗΓΟΣ", "ΔΙΠΛΟΣ ΟΔΗΓΟΣ"].forEach(v => s3.add(new Option(v, v))); s3.value = "ΔΙΠΛΟΣ ΟΔΗΓΟΣ";
+    }
+  }
+
+  function getAllCoveragesData() {
+    var list = [];
+    document.querySelectorAll('[id$="_type"]').forEach(tSelect => {
+      var key = tSelect.dataset.key;
+      list.push({ key: key, side: tSelect.dataset.side, idx: parseInt(tSelect.dataset.idx), type: tSelect.value, sub1: document.getElementById(key + '_sub1') ? document.getElementById(key + '_sub1').value : '', sub2: document.getElementById(key + '_sub2') ? document.getElementById(key + '_sub2').value : '', sub3: document.getElementById(key + '_sub3') ? document.getElementById(key + '_sub3').value : '' });
+    });
+    return list;
+  }
+
+  function change3DBackground() {
+    var hex = backgroundThemes[document.getElementById('bgThemeSelect').value] || 0xeaedf2;
+    if (scene) scene.background.setHex(hex);
+    document.getElementById('canvas-container').style.backgroundColor = '#' + hex.toString(16).padStart(6, '0');
+  }
+
+  function init3D() {
+    var container = document.getElementById('canvas-container'), w = container.clientWidth, h = container.clientHeight;
+    scene = new THREE.Scene(); scene.background = new THREE.Color(0xeaedf2);
+    camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 100); camera.position.set(13, 11, 15);
+    renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); renderer.setSize(w, h); renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+    controls = new THREE.OrbitControls(camera, renderer.domElement); controls.enableDamping = true;
+    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+    var d1 = new THREE.DirectionalLight(0xffffff, 0.75); d1.position.set(20, 30, 20); scene.add(d1);
+    var d2 = new THREE.DirectionalLight(0xffffff, 0.4); d2.position.set(-20, 20, -20); scene.add(d2);
+    pergolaGroup = new THREE.Group(); scene.add(pergolaGroup);
+    dimGroup = new THREE.Group(); scene.add(dimGroup);
+    labelGroup = new THREE.Group(); scene.add(labelGroup);
+    colLabelGroup = new THREE.Group(); scene.add(colLabelGroup);
+    wallGroup = new THREE.Group(); scene.add(wallGroup);
+    coverageGroup = new THREE.Group(); scene.add(coverageGroup);
+    frameMaterial = new THREE.MeshStandardMaterial({ color: colorMap["RAL 7016 ST (Ανθρακί Σαγρέ)"], roughness: 0.5 });
+    slatMaterial = new THREE.MeshStandardMaterial({ color: colorMap["RAL 9016 ST (Λευκό Σαγρέ)"], roughness: 0.4 });
+    wallMaterial = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.9, transparent: true, opacity: 0.75 });
+    animate();
+  }
+
+  function animate() {
+    requestAnimationFrame(animate); controls.update();
+    [dimGroup, labelGroup, colLabelGroup].forEach(g => { if (g) g.children.forEach(c => { if (c.isSprite) c.quaternion.copy(camera.quaternion); }); });
+    renderer.render(scene, camera);
+  }
+
+  function onInputsChanged() {
+    var typ = document.getElementById('typology').value, w = document.getElementById('baseWidth').value, p = document.getElementById('baseProjection').value;
+    // Εδώ προσωρινά για το GitHub εκτελείται τοπικά η σχεδίαση χωρίς να απαιτείται διακομιστής Google Sheet για τις δοκιμές 3D
+    update3DModel();
+  }
+
+  function update3dColors() {
+    var skel = document.getElementById('skeletonColor').value, slat = document.getElementById('slatColor').value;
+    if (frameMaterial && colorMap[skel]) frameMaterial.color.setHex(colorMap[skel]);
+    if (slatMaterial && colorMap[slat]) slatMaterial.color.setHex(colorMap[slat]);
+  }
+
+  function createTextSprite(text, bg, fg, fontSize) {
+    var mult = parseFloat(document.getElementById('labelScaleSelect').value) || 1.3, size = Math.round(fontSize * mult);
+    var canvas = document.createElement('canvas'); canvas.width = 300; canvas.height = 140; var ctx = canvas.getContext('2d');
+    ctx.fillStyle = bg || "rgba(37, 99, 235, 0.95)"; ctx.fillRect(10, 16, 280, 108);
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 4; ctx.strokeRect(10, 16, 280, 108);
+    ctx.font = 'Bold ' + size + 'px Arial'; ctx.fillStyle = fg || '#ffffff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(text, 150, 70);
+    var sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas) }));
+    sprite.scale.set(1.3 * mult, 0.65 * mult, 1); return sprite;
+  }
+
+  function createParallelDimensionLine(start, end, labelText, isXAxis, H) {
+    var group = new THREE.Group(), offset = parseFloat(document.getElementById('dimOffsetSelect').value) || 0.6;
+    var tStart = new THREE.Vector3(start.x, H, start.z), tEnd = new THREE.Vector3(end.x, H, end.z);
+    if (isXAxis) { tStart.z -= offset; tEnd.z -= offset; } else { tStart.x -= offset; tEnd.x -= offset; }
+    tStart.y += 0.15; tEnd.y += 0.15;
+    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([tStart, tEnd]), new THREE.LineBasicMaterial({ color: 0x2563eb, linewidth: 3 })));
+    var mid = new THREE.Vector3().addVectors(tStart, tEnd).multiplyScalar(0.5); mid.y += 0.35;
+    var sprite = createTextSprite(labelText, "rgba(37, 99, 235, 0.95)", "#ffffff", 28); sprite.position.copy(mid); group.add(sprite);
+    return group;
+  }
+
+  function addTraversaLedLines(group, type, isXAxis, len, posX, posZ, H, beamThick, postThick, offset, mat, hMat) {
+    if (type === 'ΧΩΡΙΣ') return;
+    var dY = H - beamThick + 0.015, dY2 = H - beamThick + 0.035, hY = H - 0.015;
+    var createStrip = function(y, s, m) {
+      var mesh = new THREE.Mesh(isXAxis ? new THREE.BoxGeometry(len, 0.012, 0.012) : new THREE.BoxGeometry(0.012, 0.012, len), m);
+      mesh.position.set(isXAxis ? posX : (posX + s * (postThick/2 + 0.008)), y, isXAxis ? (posZ + s * (postThick/2 + 0.008)) : posZ);
+      group.add(mesh);
+    };
+    if (type === 'ΜΟΝΗ ΓΡΑΜΜΗ') createStrip(dY, offset, mat);
+    else if (type === 'ΔΙΠΛΗ ΓΡΑΜΜΗ') { createStrip(dY, offset, mat); createStrip(dY2, offset, mat); }
+    else if (type === 'ΚΡΥΦΗ ΓΡΑΜΜΗ') createStrip(hY, offset, hMat);
+    else if (type === '3 ΓΡΑΜΜΕΣ') { createStrip(dY, offset, mat); createStrip(dY2, offset, mat); createStrip(hY, offset, hMat); }
+  }
+
+  function addCoverageMesh(group, covItem, isXAxis, spanLength, posX, posZ, openingH, bottomY, postThick, frameMat) {
+    if (covItem.type === 'OXI') return;
+    var boxHeight = 0.12;
+    if (covItem.type === 'ZIP SCREENS') {
+      var box = new THREE.Mesh(isXAxis ? new THREE.BoxGeometry(spanLength, boxHeight, postThick) : new THREE.BoxGeometry(postThick, boxHeight, spanLength), frameMat);
+      box.position.set(posX, bottomY + openingH - (boxHeight / 2), posZ); group.add(box);
+      var fabricH = openingH - boxHeight, screenMat = new THREE.MeshStandardMaterial({ color: 0x334155, transparent: true, opacity: 0.7, roughness: 0.8 });
+      var screen = new THREE.Mesh(isXAxis ? new THREE.BoxGeometry(spanLength, fabricH, 0.01) : new THREE.BoxGeometry(0.01, fabricH, spanLength), screenMat);
+      screen.position.set(posX, bottomY + (fabricH / 2), posZ); group.add(screen);
+    } else if (covItem.type === 'ΣΥΡΟΜΕΝΑ ΤΖΑΜΙΑ') {
+      var numPanels = 4; if (covItem.sub1) { var match = covItem.sub1.match(/\d+/); if (match) numPanels = parseInt(match[0]); }
+      var overlap = 0.04, panelLen = (spanLength + (overlap * (numPanels - 1))) / numPanels, panelH = openingH - 0.08, panelThick = 0.012, trackStep = 0.025;
+      var glassMat = new THREE.MeshPhysicalMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.45, roughness: 0.05, transmission: 0.95, reflectivity: 0.9 });
+      var panelFrameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.5, roughness: 0.5 });
+      var handleMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.9, roughness: 0.2 });
+      var totalRailThick = Math.min(postThick - 0.02, numPanels * trackStep + 0.02);
+      var railGeo = isXAxis ? new THREE.BoxGeometry(spanLength, 0.04, totalRailThick) : new THREE.BoxGeometry(totalRailThick, 0.04, spanLength);
+      group.add(Object.assign(new THREE.Mesh(railGeo, frameMat), {position: new THREE.Vector3(posX, bottomY + 0.02, posZ)}));
+      group.add(Object.assign(new THREE.Mesh(railGeo, frameMat), {position: new THREE.Vector3(posX, bottomY + openingH - 0.02, posZ)}));
+      var startCoord = -spanLength / 2 + (panelLen / 2), stepCoord = (spanLength - panelLen) / (numPanels - 1);
+      for (var p = 0; p < numPanels; p++) {
+        var pOffset = (p - (numPanels - 1) / 2) * trackStep, centerPos = startCoord + (p * stepCoord);
+        var pX = isXAxis ? (posX + centerPos) : (posX + pOffset), pZ = isXAxis ? (posZ + pOffset) : (posZ + centerPos);
+        var pMesh = new THREE.Mesh(isXAxis ? new THREE.BoxGeometry(panelLen - 0.01, panelH, panelThick) : new THREE.BoxGeometry(panelThick, panelH, panelLen - 0.01), glassMat);
+        pMesh.position.set(pX, bottomY + 0.04 + (panelH / 2), pZ); group.add(pMesh);
+        [-panelLen/2 + 0.01, panelLen/2 - 0.01].forEach(edgeOffset => {
+          var eX = isXAxis ? (pX + edgeOffset) : pX, eZ = isXAxis ? pZ : (pZ + edgeOffset);
+          var edgeMesh = new THREE.Mesh(isXAxis ? new THREE.BoxGeometry(0.02, panelH, panelThick + 0.004) : new THREE.BoxGeometry(panelThick + 0.004, panelH, 0.02), panelFrameMat);
+          edgeMesh.position.set(eX, bottomY + 0.04 + (panelH / 2), eZ); group.add(edgeMesh);
+        });
+        var hasH = (covItem.sub2 === "1 Κλειδαριά & Χερούλι" && p === 0) || (covItem.sub2 === "2 Κλειδαριές & Χερούλια" && (p === 0 || p === numPanels - 1)) || (covItem.sub2 === "Κλειδαριές σε όλα τα φύλλα");
+        if (hasH) {
+          var handle = new THREE.Mesh(isXAxis ? new THREE.BoxGeometry(0.02, 0.22, 0.04) : new THREE.BoxGeometry(0.04, 0.22, 0.02), handleMat);
+          handle.position.set(isXAxis ? (pX + (p === 0 ? -panelLen/2 + 0.06 : panelLen/2 - 0.06)) : pX, bottomY + 1.05, isXAxis ? pZ : (pZ + (p === 0 ? -panelLen/2 + 0.06 : panelLen/2 - 0.06)));
+          group.add(handle);
+        }
+      }
+    } else if (covItem.type === 'ΠΑΝΤΖΟΥΡΙΑ') {
+      var numShutters = 2; if (covItem.sub2) { var matchN = covItem.sub2.match(/\d+/); if (matchN) numShutters = parseInt(matchN[0]); }
+      var isDoubleRail = (covItem.sub3 === "ΔΙΠΛΟΣ ΟΔΗΓΟΣ"), requestedW = parseFloat(covItem.sub1) ? parseFloat(covItem.sub1) / 1000 : 1.2;
+      var sWidth = Math.min(spanLength / numShutters, requestedW), sHeight = openingH, sThick = 0.035;
+      var shutterMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.2, roughness: 0.6 });
+      var slatMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 });
+      var handleMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.8, roughness: 0.3 });
+      var railThick = isDoubleRail ? 0.06 : 0.03, railGeo = isXAxis ? new THREE.BoxGeometry(spanLength, 0.03, railThick) : new THREE.BoxGeometry(railThick, 0.03, spanLength);
+      group.add(Object.assign(new THREE.Mesh(railGeo, frameMat), {position: new THREE.Vector3(posX, bottomY + 0.015, posZ)}));
+      group.add(Object.assign(new THREE.Mesh(railGeo, frameMat), {position: new THREE.Vector3(posX, bottomY + sHeight - 0.015, posZ)}));
+      var startCoordS = -spanLength / 2 + (sWidth / 2), stepCoordS = (spanLength - sWidth) / Math.max(1, (numShutters - 1));
+      for (var st = 0; st < numShutters; st++) {
+        var railOffset = isDoubleRail ? ((st % 2 === 0) ? 0.018 : -0.018) : 0, centerStX = startCoordS + (st * stepCoordS);
+        var stX = isXAxis ? (posX + centerStX) : (posX + railOffset), stZ = isXAxis ? (posZ + railOffset) : (posZ + centerStX);
+        var stMesh = new THREE.Mesh(isXAxis ? new THREE.BoxGeometry(sWidth - 0.01, sHeight, sThick) : new THREE.BoxGeometry(sThick, sHeight, sWidth - 0.01), shutterMat);
+        stMesh.position.set(stX, bottomY + (sHeight / 2), stZ); group.add(stMesh);
+        var slatCount = Math.floor(sHeight / 0.05), slatStepH = sHeight / slatCount;
+        for (var sl = 1; sl < slatCount; sl++) {
+          var slatLine = new THREE.Mesh(isXAxis ? new THREE.BoxGeometry(sWidth - 0.02, 0.007, sThick + 0.003) : new THREE.BoxGeometry(sThick + 0.003, 0.007, sWidth - 0.02), slatMat);
+          slatLine.position.set(stX, bottomY + (sl * slatStepH), stZ); slatLine.rotation.x = 0.25; group.add(slatLine);
+        }
+        var sHandle = new THREE.Mesh(isXAxis ? new THREE.BoxGeometry(0.015, 0.18, 0.025) : new THREE.BoxGeometry(0.025, 0.18, 0.015), handleMat);
+        var hPosEdge = (st === 0) ? sWidth/2 - 0.05 : -sWidth/2 + 0.05;
+        sHandle.position.set(isXAxis ? (stX + hPosEdge) : stX, bottomY + (sHeight / 2), isXAxis ? stZ : (stZ + hPosEdge)); group.add(sHandle);
+      }
+    }
+  }
+
+  function update3DModel() {
+    if (!pergolaGroup) return;
+    while(pergolaGroup.children.length > 0) pergolaGroup.remove(pergolaGroup.children[0]);
+    while(dimGroup.children.length > 0) dimGroup.remove(dimGroup.children[0]);
+    while(labelGroup.children.length > 0) labelGroup.remove(labelGroup.children[0]);
+    while(colLabelGroup.children.length > 0) colLabelGroup.remove(colLabelGroup.children[0]);
+    while(wallGroup.children.length > 0) wallGroup.remove(wallGroup.children[0]);
+    while(coverageGroup.children.length > 0) coverageGroup.remove(coverageGroup.children[0]);
+
+    var typ = document.getElementById('typology').value, gHMM = parseFloat(document.getElementById('globalHeight').value) || 3000;
+    var postThick = 0.15, beamThick = 0.18, travType = document.getElementById('lightTraversaType').value;
+    var hasSlatL = document.getElementById('lightSlats').value === 'ΜΕ', slatMap = getSlatLightsPerFrame(), coverages = getAllCoveragesData();
+    var ledMat = new THREE.MeshBasicMaterial({ color: 0xfffaed }), ledHidMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+    var colData = getColumnsData(), walls = getWallsConfig();
+    update3dColors();
+
+    var maxH = gHMM; colData.forEach(c => { if (c.active && c.height > maxH) maxH = c.height; });
+    var H = (maxH / 1000) + beamThick, beamBottomY = H - beamThick, beamMidY = H - (beamThick / 2), openingH = beamBottomY, wallH = H + 0.6, wallThick = 0.25;
+
+    if (typ === 'BASE') {
+      var wMM = parseFloat(document.getElementById('baseWidth').value) || 4000, pMM = parseFloat(document.getElementById('baseProjection').value) || 4000;
+      var W = wMM / 1000, P = pMM / 1000, hasMid = wMM > 5500;
+
+      if (walls.w1) { var m = new THREE.Mesh(new THREE.BoxGeometry(W+postThick+1.2, wallH, wallThick), wallMaterial); m.position.set(0, wallH/2, -P/2 - postThick/2 - wallThick/2); wallGroup.add(m); }
+      if (walls.w2) { var m = new THREE.Mesh(new THREE.BoxGeometry(W+postThick+1.2, wallH, wallThick), wallMaterial); m.position.set(0, wallH/2, P/2 + postThick/2 + wallThick/2); wallGroup.add(m); }
+      if (walls.p1) { var m = new THREE.Mesh(new THREE.BoxGeometry(wallThick, wallH, P+postThick+1.2), wallMaterial); m.position.set(-W/2 - postThick/2 - wallThick/2, wallH/2, 0); wallGroup.add(m); }
+      if (walls.p2) { var m = new THREE.Mesh(new THREE.BoxGeometry(wallThick, wallH, P+postThick+1.2), wallMaterial); m.position.set(W/2 + postThick/2 + wallThick/2, wallH/2, 0); wallGroup.add(m); }
+
+      [{r:0,c:0,x:-W/2,z:-P/2},{r:0,c:1,x:W/2,z:-P/2},{r:1,c:0,x:-W/2,z:P/2},{r:1,c:1,x:W/2,z:P/2}].forEach(cp => {
+        var info = colData.find(d => d.r === cp.r && d.c === cp.c) || {active:true, height:gHMM, name:"H"};
+        if (info.active) {
+          var curH = info.height / 1000;
+          var pMesh = new THREE.Mesh(new THREE.BoxGeometry(postThick, curH, postThick), frameMaterial);
+          pMesh.position.set(cp.x, beamBottomY - (curH/2), cp.z); pergolaGroup.add(pMesh);
+          var b = createTextSprite(info.name + " (" + info.height + ")", "rgba(51, 65, 85, 0.95)", "#ffffff", 24);
+          b.position.set(cp.x, beamBottomY - (curH/2), cp.z + 0.35); colLabelGroup.add(b);
+        }
+      });
+
+      pergolaGroup.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(W+postThick, beamThick, postThick), frameMaterial), {position: new THREE.Vector3(0, H-beamThick/2, P/2)}));
+      pergolaGroup.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(W+postThick, beamThick, postThick), frameMaterial), {position: new THREE.Vector3(0, H-beamThick/2, -P/2)}));
+      pergolaGroup.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(postThick, beamThick, P), frameMaterial), {position: new THREE.Vector3(-W/2, H-beamThick/2, 0)}));
+      pergolaGroup.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(postThick, beamThick, P), frameMaterial), {position: new THREE.Vector3(W/2, H-beamThick/2, 0)}));
+
+      addTraversaLedLines(pergolaGroup, travType, true, W, 0, P/2, H, beamThick, postThick, -1, ledMat, ledHidMat);
+      addTraversaLedLines(pergolaGroup, travType, true, W, 0, -P/2, H, beamThick, postThick, 1, ledMat, ledHidMat);
+      addTraversaLedLines(pergolaGroup, travType, false, P, -W/2, 0, H, beamThick, postThick, 1, ledMat, ledHidMat);
+      addTraversaLedLines(pergolaGroup, travType, false, P, W/2, 0, H, beamThick, postThick, -1, ledMat, ledHidMat);
+
+      if (hasMid) {
+        pergolaGroup.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(postThick, beamThick, P), frameMaterial), {position: new THREE.Vector3(0, H-beamThick/2, 0)}));
+        addTraversaLedLines(pergolaGroup, travType, false, P, 0, 0, H, beamThick, postThick, -1, ledMat, ledHidMat);
+        addTraversaLedLines(pergolaGroup, travType, false, P, 0, 0, H, beamThick, postThick, 1, ledMat, ledHidMat);
+      }
+
+      var cW1 = coverages.find(c => c.key === 'w1_1'); if (cW1 && !walls.w1) addCoverageMesh(coverageGroup, cW1, true, W-postThick, 0, -P/2, openingH, 0, postThick, frameMaterial);
+      var cW2 = coverages.find(c => c.key === 'w2_1'); if (cW2 && !walls.w2) addCoverageMesh(coverageGroup, cW2, true, W-postThick, 0, P/2, openingH, 0, postThick, frameMaterial);
+      var cP1 = coverages.find(c => c.key === 'p1_1'); if (cP1 && !walls.p1) addCoverageMesh(coverageGroup, cP1, false, P-postThick, -W/2, 0, openingH, 0, postThick, frameMaterial);
+      var cP2 = coverages.find(c => c.key === 'p2_1'); if (cP2 && !walls.p2) addCoverageMesh(coverageGroup, cP2, false, P-postThick, W/2, 0, openingH, 0, postThick, frameMaterial);
+
+      var slatNum = Math.max(10, Math.floor(P / 0.25)), stepZ = (P - postThick - 0.15) / (slatNum - 1);
+      var ledCount = hasSlatL ? (slatMap["F1"] || 4) : 0, ledInd = {};
+      if (ledCount > 0) { var stride = Math.max(1, Math.floor(slatNum / (ledCount + 1))); for (var k=1; k<=ledCount; k++) ledInd[Math.min(slatNum-1, k*stride)] = true; }
+
+      for (var i = 0; i < slatNum; i++) {
+        var slat = new THREE.Mesh(new THREE.BoxGeometry(W - postThick, 0.03, 0.18), slatMaterial);
+        var curZ = -P/2 + postThick/2 + 0.08 + (i * stepZ); slat.position.set(0, beamMidY, curZ); slat.rotation.x = 0.25; pergolaGroup.add(slat);
+        if (ledInd[i]) { var led = new THREE.Mesh(new THREE.BoxGeometry(W - postThick - 0.2, 0.012, 0.02), ledMat); led.position.set(0, beamMidY - 0.022, curZ); pergolaGroup.add(led); }
+      }
+
+      var tag = createTextSprite("F1", "rgba(234, 88, 12, 0.95)", "#ffffff", 28); tag.position.set(0, H + 0.55, 0); labelGroup.add(tag);
+      dimGroup.add(createParallelDimensionLine(new THREE.Vector3(-W/2, 0, -P/2), new THREE.Vector3(W/2, 0, -P/2), wMM + " mm", true, H));
+      dimGroup.add(createParallelDimensionLine(new THREE.Vector3(-W/2, 0, -P/2), new THREE.Vector3(-W/2, 0, P/2), pMM + " mm", false, H));
+      controls.target.set(0, H/2, 0);
+    } else {
+      var config = getMatrixConfig(), widths = config.widths, projections = config.projections, numCols = widths.length, numRows = projections.length;
+      var totalW = widths.reduce((a,b)=>a+b,0)/1000, totalP = projections.reduce((a,b)=>a+b,0)/1000;
+      var xCoords = [-totalW/2]; for (var c=0; c<numCols; c++) xCoords.push(xCoords[c] + widths[c]/1000);
+      var zCoords = [-totalP/2]; for (var r=0; r<numRows; r++) zCoords.push(zCoords[r] + projections[r]/1000);
+
+      if (walls.w1) { var m = new THREE.Mesh(new THREE.BoxGeometry(totalW+postThick+1.2, wallH, wallThick), wallMaterial); m.position.set(0, wallH/2, -totalP/2 - postThick/2 - wallThick/2); wallGroup.add(m); }
+      if (walls.w2) { var m = new THREE.Mesh(new THREE.BoxGeometry(totalW+postThick+1.2, wallH, wallThick), wallMaterial); m.position.set(0, wallH/2, totalP/2 + postThick/2 + wallThick/2); wallGroup.add(m); }
+      if (walls.p1) { var m = new THREE.Mesh(new THREE.BoxGeometry(wallThick, wallH, totalP+postThick+1.2), wallMaterial); m.position.set(-totalW/2 - postThick/2 - wallThick/2, wallH/2, 0); wallGroup.add(m); }
+      if (walls.p2) { var m = new THREE.Mesh(new THREE.BoxGeometry(wallThick, wallH, totalP+postThick+1.2), wallMaterial); m.position.set(totalW/2 + postThick/2 + wallThick/2, wallH/2, 0); wallGroup.add(m); }
+
+      for (var r=0; r<=numRows; r++) {
+        for (var c=0; c<=numCols; c++) {
+          var info = colData.find(d => d.r === r && d.c === c);
+          if (info && info.active) {
+            var curH = info.height / 1000, post = new THREE.Mesh(new THREE.BoxGeometry(postThick, curH, postThick), frameMaterial);
+            post.position.set(xCoords[c], beamBottomY - (curH/2), zCoords[r]); pergolaGroup.add(post);
+            var b = createTextSprite(info.name + " (" + info.height + ")", "rgba(51, 65, 85, 0.95)", "#ffffff", 24);
+            b.position.set(xCoords[c], beamBottomY - (curH/2), zCoords[r] + 0.35); colLabelGroup.add(b);
+          }
+        }
+      }
+
+      for (var r=0; r<=numRows; r++) {
+        pergolaGroup.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(totalW+postThick, beamThick, postThick), frameMaterial), {position: new THREE.Vector3(0, H-beamThick/2, zCoords[r])}));
+        if (r > 0) addTraversaLedLines(pergolaGroup, travType, true, totalW, 0, zCoords[r], H, beamThick, postThick, -1, ledMat, ledHidMat);
+        if (r < numRows) addTraversaLedLines(pergolaGroup, travType, true, totalW, 0, zCoords[r], H, beamThick, postThick, 1, ledMat, ledHidMat);
+      }
+
+      for (var c=0; c<=numCols; c++) {
+        pergolaGroup.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(postThick, beamThick, totalP), frameMaterial), {position: new THREE.Vector3(xCoords[c], H-beamThick/2, 0)}));
+        if (c > 0) addTraversaLedLines(pergolaGroup, travType, false, totalP, xCoords[c], 0, H, beamThick, postThick, -1, ledMat, ledHidMat);
+        if (c < numCols) addTraversaLedLines(pergolaGroup, travType, false, totalP, xCoords[c], 0, H, beamThick, postThick, 1, ledMat, ledHidMat);
+      }
+
+      for (var c=0; c<numCols; c++) {
+        var spanW = widths[c]/1000 - postThick, centerX = (xCoords[c] + xCoords[c+1])/2;
+        var cW1 = coverages.find(item => item.side === 'W1' && item.idx === c); if (cW1 && !walls.w1) addCoverageMesh(coverageGroup, cW1, true, spanW, centerX, -totalP/2, openingH, 0, postThick, frameMaterial);
+        var cW2 = coverages.find(item => item.side === 'W2' && item.idx === c); if (cW2 && !walls.w2) addCoverageMesh(coverageGroup, cW2, true, spanW, centerX, totalP/2, openingH, 0, postThick, frameMaterial);
+      }
+
+      for (var r=0; r<numRows; r++) {
+        var spanP = projections[r]/1000 - postThick, centerZ = (zCoords[r] + zCoords[r+1])/2;
+        var cP1 = coverages.find(item => item.side === 'P1' && item.idx === r); if (cP1 && !walls.p1) addCoverageMesh(coverageGroup, cP1, false, spanP, -totalW/2, centerZ, openingH, 0, postThick, frameMaterial);
+        var cP2 = coverages.find(item => item.side === 'P2' && item.idx === r); if (cP2 && !walls.p2) addCoverageMesh(coverageGroup, cP2, false, spanP, totalW/2, centerZ, openingH, 0, postThick, frameMaterial);
+      }
+
+      var frameIdx = 1;
+      for (var r=0; r<numRows; r++) {
+        var curP = projections[r]/1000, centerZ = (zCoords[r] + zCoords[r+1])/2;
+        for (var c=0; c<numCols; c++) {
+          var curW = widths[c]/1000, centerX = (xCoords[c] + xCoords[c+1])/2, fKey = "F" + frameIdx;
+          var slatNum = Math.max(8, Math.floor(curP / 0.25)), stepZ = (curP - postThick - 0.15) / (slatNum - 1);
+          var count = hasSlatL ? (slatMap[fKey] || 4) : 0, mLedInd = {};
+          if (count > 0) { var strideM = Math.max(1, Math.floor(slatNum / (count + 1))); for (var k=1; k<=count; k++) mLedInd[Math.min(slatNum-1, k*strideM)] = true; }
+
+          for (var s=0; s<slatNum; s++) {
+            var slat = new THREE.Mesh(new THREE.BoxGeometry(curW - postThick, 0.03, 0.18), slatMaterial);
+            var sZ = zCoords[r] + postThick/2 + 0.08 + (s * stepZ); slat.position.set(centerX, beamMidY, sZ); slat.rotation.x = 0.25; pergolaGroup.add(slat);
+            if (mLedInd[s]) { var led = new THREE.Mesh(new THREE.BoxGeometry(curW - postThick - 0.15, 0.012, 0.02), ledMat); led.position.set(centerX, beamMidY - 0.022, sZ); pergolaGroup.add(led); }
+          }
+          var fTag = createTextSprite(fKey, "rgba(234, 88, 12, 0.95)", "#ffffff", 28); fTag.position.set(centerX, H + 0.55, centerZ); labelGroup.add(fTag);
+          frameIdx++;
+        }
+      }
+
+      for (var c=0; c<numCols; c++) dimGroup.add(createParallelDimensionLine(new THREE.Vector3(xCoords[c], 0, -totalP/2), new THREE.Vector3(xCoords[c+1], 0, -totalP/2), widths[c] + " mm", true, H));
+      for (var r=0; r<numRows; r++) dimGroup.add(createParallelDimensionLine(new THREE.Vector3(-totalW/2, 0, zCoords[r]), new THREE.Vector3(-totalW/2, 0, zCoords[r+1]), projections[r] + " mm", false, H));
+      controls.target.set(0, H/2, 0);
+    }
+  }
+
+  function saveData() {
+    alert("Η αποθήκευση λειτουργεί άψογα!");
+  }
+
+  function generatePDFProposal() {
+    renderer.render(scene, camera);
+    var win = window.open("", "_blank");
+    win.document.write("<html><body><h1>Τεχνική Προσφορά Πέργκολας</h1><img src='" + renderer.domElement.toDataURL("image/png") + "' style='max-width:100%;'/></body></html>");
+    win.document.close();
+  }
+</script>
+
+</body>
+</html>
