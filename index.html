@@ -417,8 +417,22 @@
   }
 
   function onInputsChanged() {
-    var typ = document.getElementById('typology').value, w = document.getElementById('baseWidth').value, p = document.getElementById('baseProjection').value;
-    // Εδώ προσωρινά για το GitHub εκτελείται τοπικά η σχεδίαση χωρίς να απαιτείται διακομιστής Google Sheet για τις δοκιμές 3D
+    var w = document.getElementById('baseWidth').value;
+    var p = document.getElementById('baseProjection').value;
+    var typ = document.getElementById('typology').value;
+    
+    var slatType = (typ === 'BASE' && w > 4000) ? "ΕΝΙΣΧΥΜΕΝΗ" : "ΑΠΛΗ";
+    document.getElementById('slatTypeDisplay').innerText = slatType;
+    document.getElementById('summaryDisplay').innerText = (typ === 'BASE') ? "Ολικό Πλάτος W: " + w + " mm | Ολική Προβολή P: " + p + " mm" : "MATRIX Σύστημα";
+    
+    var walls = getWallsConfig();
+    var wList = [];
+    if (walls.w1) wList.push("W1 (Πίσω)");
+    if (walls.w2) wList.push("W2 (Μπροστά)");
+    if (walls.p1) wList.push("P1 (Αριστερά)");
+    if (walls.p2) wList.push("P2 (Δεξιά)");
+    document.getElementById('wallsDisplay').innerText = wList.length ? wList.join(", ") : "Χωρίς (Αυτοστηριζόμενη)";
+
     update3DModel();
   }
 
