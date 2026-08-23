@@ -6,7 +6,6 @@
   <title>PG 120P MYKONOS - Υπολογιστής Πέργκολας</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
     .app-layout { display: flex; flex-wrap: wrap; gap: 20px; max-width: 1640px; margin: 0 auto; }
@@ -417,8 +416,8 @@
   }
 
   function onInputsChanged() {
-    var w = document.getElementById('baseWidth').value;
-    var p = document.getElementById('baseProjection').value;
+    var w = parseFloat(document.getElementById('baseWidth').value) || 4000;
+    var p = parseFloat(document.getElementById('baseProjection').value) || 4000;
     var typ = document.getElementById('typology').value;
     
     var slatType = (typ === 'BASE' && w > 4000) ? "ΕΝΙΣΧΥΜΕΝΗ" : "ΑΠΛΗ";
